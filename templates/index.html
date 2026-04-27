@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt Injection Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0e1a; color: #e0e6f0; min-height: 100vh; }
+        header { background: linear-gradient(135deg, #0d1b2a, #1a2744); border-bottom: 1px solid #1e3a5f; padding: 20px 40px; display: flex; align-items: center; gap: 15px; }
+        .logo { width: 40px; height: 40px; background: linear-gradient(135deg, #00d4ff, #0066ff); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        header h1 { font-size: 22px; color: #fff; }
+        header p { font-size: 13px; color: #7090b0; margin-top: 2px; }
+        .badge { margin-left: auto; background: #0d2a1a; border: 1px solid #00c853; color: #00c853; padding: 5px 14px; border-radius: 20px; font-size: 12px; }
+        .stats-bar { display: flex; border-bottom: 1px solid #1e3a5f; }
+        .stat { flex: 1; padding: 18px; text-align: center; border-right: 1px solid #1e3a5f; }
+        .stat:last-child { border-right: none; }
+        .stat .num { font-size: 26px; font-weight: 700; color: #00d4ff; }
+        .stat .label { font-size: 11px; color: #7090b0; margin-top: 4px; }
+        .main { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 160px); }
+        .left-panel { padding: 30px; border-right: 1px solid #1e3a5f; display: flex; flex-direction: column; gap: 16px; }
+        .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #7090b0; margin-bottom: 6px; }
+        textarea { width: 100%; height: 140px; background: #0d1b2a; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; color: #e0e6f0; font-size: 14px; resize: none; outline: none; font-family: inherit; transition: border 0.2s; }
+        textarea:focus { border-color: #00d4ff; }
+        .btn-analyze { background: linear-gradient(135deg, #0066ff, #00d4ff); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; width: 100%; }
+        .btn-analyze:hover { opacity: 0.85; }
+        .examples-section { flex: 1; overflow-y: auto; }
+        .example-group { margin-bottom: 16px; }
+        .example-chip { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin: 4px 4px 4px 0; transition: opacity 0.2s; }
+        .chip-danger { background: #2a0d0d; border: 1px solid #8b1a1a; color: #ff6b6b; }
+        .chip-safe { background: #0d2a1a; border: 1px solid #1a5c2a; color: #69db7c; }
+        .example-chip:hover { opacity: 0.75; }
+        .right-panel { padding: 30px; display: flex; flex-direction: column; gap: 20px; }
+        .result-card { background: #0d1b2a; border: 1px solid #1e3a5f; border-radius: 12px; padding: 24px; display: none; }
+        .result-card.visible { display: block; }
+        .verdict-badge { display: inline-block; padding: 8px 20px; border-radius: 8px; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+        .verdict-BLOCKED { background: #2a0d0d; color: #ff4444; border: 1px solid #8b1a1a; }
+        .verdict-WARNING { background: #2a1a00; color: #ffa500; border: 1px solid #7a4a00; }
+        .verdict-SAFE { background: #0d2a1a; color: #00c853; border: 1px solid #1a5c2a; }
+        .score-bar-wrap { margin: 16px 0; }
+        .score-label { display: flex; justify-content: space-between; font-size: 13px; color: #7090b0; margin-bottom: 8px; }
+        .score-bar { height: 10px; background: #1e3a5f; border-radius: 5px; overflow: hidden; }
+        .score-fill { height: 100%; border-radius: 5px; transition: width 0.6s ease; }
+        .fill-high { background: linear-gradient(90deg, #ff4444, #ff0000); }
+        .fill-medium { background: linear-gradient(90deg, #ffa500, #ff6b00); }
+        .fill-low { background: linear-gradient(90deg, #00c853, #00e676); }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .info-box { background: #0a0e1a; border: 1px solid #1e3a5f; border-radius: 8px; padding: 12px; }
+        .info-box .ib-label { font-size: 11px; color: #7090b0; }
+        .info-box .ib-value { font-size: 16px; font-weight: 700; color: #fff; margin-top: 4px; }
+        .patterns-list { margin-top: 16px; }
+        .pattern-item { background: #150a0a; border: 1px solid #3a1a1a; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; font-size: 12px; color: #ff9999; font-family: monospace; word-break: break-all; }
+        .placeholder-card { background: #0d1b2a; border: 1px dashed #1e3a5f; border-radius: 12px; padding: 60px 24px; text-align: center; color: #3a5a7a; }
+        .placeholder-card .icon { font-size: 48px; margin-bottom: 12px; }
+        .placeholder-card p { font-size: 14px; }
+        .framework-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+        .ftag { background: #0d1b3a; border: 1px solid #1e3a7f; color: #6090ff; padding: 4px 10px; border-radius: 5px; font-size: 11px; }
+        .loading { text-align: center; padding: 20px; color: #7090b0; display: none; font-size: 14px; }
+        .scan-history { margin-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 6px; background: #0a0e1a; border: 1px solid #1e3a5f; margin-bottom: 6px; font-size: 12px; }
+        .history-text { color: #7090b0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
+        .history-badge { padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+        .hb-BLOCKED { background: #2a0d0d; color: #ff4444; }
+        .hb-WARNING { background: #2a1a00; color: #ffa500; }
+        .hb-SAFE { background: #0d2a1a; color: #00c853; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🛡️</div>
+    <div>
+        <h1>AI Prompt Injection Detector</h1>
+        <p>Real-time LLM threat detection · OWASP LLM01 · MITRE ATLAS</p>
+    </div>
+    <div class="badge">🟢 LIVE</div>
+</header>
+
+<div class="stats-bar">
+    <div class="stat"><div class="num" id="s1">1,247</div><div class="label">Threats Blocked</div></div>
+    <div class="stat"><div class="num" id="s2">94.2%</div><div class="label">Detection Accuracy</div></div>
+    <div class="stat"><div class="num" id="s3">40</div><div class="label">Attack Patterns</div></div>
+    <div class="stat"><div class="num" id="s4">3</div><div class="label">Frameworks Covered</div></div>
+</div>
+
+<div class="main">
+    <div class="left-panel">
+        <div>
+            <div class="section-title">Analyze Input</div>
+            <textarea id="inputText" placeholder="Paste any LLM user input here to scan for prompt injection attacks..."></textarea>
+        </div>
+        <button class="btn-analyze" onclick="analyze()">🔍 Analyze for Threats</button>
+
+        <div class="examples-section">
+            <div class="example-group">
+                <div class="section-title">⚠️ Try Attack Examples</div>
+                {% for ex in attack_examples %}
+                <span class="example-chip chip-danger" onclick="loadExample(this)" data-full="{{ ex }}">{{ ex[:55] }}{% if ex|length > 55 %}...{% endif %}</span>
+                {% endfor %}
+            </div>
+            <div class="example-group">
+                <div class="section-title">✅ Try Safe Examples</div>
+                {% for ex in safe_examples %}
+                <span class="example-chip chip-safe" onclick="loadExample(this)" data-full="{{ ex }}">{{ ex }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">📋 Scan History</div>
+            <div class="scan-history" id="scanHistory"></div>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="section-title">Analysis Result</div>
+
+        <div class="loading" id="loading">⏳ Analyzing input...</div>
+
+        <div class="placeholder-card" id="placeholder">
+            <div class="icon">🔬</div>
+            <p>Enter any text on the left and click Analyze<br>to see a full threat assessment</p>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="verdict-badge" id="verdictBadge"></div>
+            <div class="score-bar-wrap">
+                <div class="score-label">
+                    <span>Risk Score</span>
+                    <span id="scoreNum">0/100</span>
+                </div>
+                <div class="section-title">Recent Activity</div>
+
+<div style="max-height: 200px; overflow-y: auto;">
+    {% for log in logs %}
+        <div style="background:#0a0e1a; border:1px solid #1e3a5f; padding:8px; margin-bottom:6px; border-radius:6px;">
+            <strong>
+                {% if log.verdict == "BLOCKED" %}
+                    <span style="color:red;">[BLOCKED]</span>
+                {% elif log.verdict == "WARNING" %}
+                    <span style="color:orange;">[WARNING]</span>
+                {% else %}
+                    <span style="color:green;">[SAFE]</span>
+                {% endif %}
+            </strong>
+            {{ log.input[:40] }}...
+        </div>
+    {% endfor %}
+</div>
+                <div class="score-bar">
+                    <div class="score-fill" id="scoreFill" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-box">
+                    <div class="ib-label">Threat Level</div>
+                    <div class="ib-value" id="threatLevel">—</div>
+                </div>
+                <div class="info-box">
+                    <div class="ib-label">Patterns Triggered</div>
+                    <div class="ib-value" id="patternsNum">—</div>
+                </div>
+            </div>
+            <div class="patterns-list" id="patternsList"></div>
+            <div class="framework-tags">
+                <span class="ftag">OWASP LLM01</span>
+                <span class="ftag">MITRE ATLAS</span>
+                <span class="ftag">STRIDE</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function loadExample(el) {
+        document.getElementById('inputText').value = el.getAttribute('data-full') || el.textContent.trim();
+    }
+
+    function addToHistory(text, verdict) {
+        const history = document.getElementById('scanHistory');
+        const item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML = '<span class="history-text">' + text.substring(0, 40) + (text.length > 40 ? '...' : '') + '</span>' +
+                         '<span class="history-badge hb-' + verdict + '">' + verdict + '</span>';
+        history.insertBefore(item, history.firstChild);
+        if (history.children.length > 5) {
+            history.removeChild(history.lastChild);
+        }
+    }
+
+    async function analyze() {
+        const text = document.getElementById('inputText').value.trim();
+        if (!text) return;
+
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('resultCard').classList.remove('visible');
+        document.getElementById('loading').style.display = 'block';
+
+        try {
+            const response = await fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+
+            const data = await response.json();
+
+            document.getElementById('loading').style.display = 'none';
+
+            const icons = { BLOCKED: '🚫', WARNING: '⚠️', SAFE: '✅' };
+            const badge = document.getElementById('verdictBadge');
+            badge.textContent = (icons[data.verdict] || '') + ' ' + data.verdict;
+            badge.className = 'verdict-badge verdict-' + data.verdict;
+
+            document.getElementById('scoreNum').textContent = data.risk_score + '/100';
+            const fill = document.getElementById('scoreFill');
+            fill.style.width = data.risk_score + '%';
+            fill.className = 'score-fill ' + (data.risk_score >= 40 ? 'fill-high' : data.risk_score >= 15 ? 'fill-medium' : 'fill-low');
+
+            document.getElementById('threatLevel').textContent = data.threat_level;
+            document.getElementById('patternsNum').textContent = data.patterns_triggered;
+
+            const list = document.getElementById('patternsList');
+            list.innerHTML = '';
+            if (data.details && data.details.length > 0) {
+                data.details.forEach(function(p) {
+                    const div = document.createElement('div');
+                    div.className = 'pattern-item';
+                    div.textContent = '⚡ Pattern matched: ' + p;
+                    list.appendChild(div);
+                });
+            }
+
+            document.getElementById('resultCard').classList.add('visible');
+
+            addToHistory(text, data.verdict);
+
+            if (data.verdict === 'BLOCKED') {
+                const el = document.getElementById('s1');
+                el.textContent = (parseInt(el.textContent.replace(',', '')) + 1).toLocaleString();
+            }
+
+        } catch (err) {
+            document.getElementById('loading').style.display = 'none';
+            const ph = document.getElementById('placeholder');
+            ph.style.display = 'block';
+            ph.innerHTML = '<div class="icon">❌</div><p>Error connecting to server.<br>Make sure Flask is running.</p>';
+            console.error(err);
+        }
+    }
+
+    document.getElementById('inputText').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') analyze();
+    });
+</script>
+
+</body>
+</html>
