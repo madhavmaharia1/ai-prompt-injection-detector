@@ -41,6 +41,7 @@ Then open: http://127.0.0.1:5000
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Author - Madhav Maharia
 
-Built as a cybersecurity + AI learning project.
+
+
